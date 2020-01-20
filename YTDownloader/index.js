@@ -1,10 +1,11 @@
 // API Imports
 const express = require("express");
 const app = express();
+const filenamify = require("filenamify");
 
 // Youtube Imports
 const fs = require("fs");
-const youtubeDl = require("youtube-dl");
+const ytdl = require("ytdl-core");
 
 app.use(express.json());
 
@@ -18,42 +19,36 @@ app.get("/test", (request, response) => {
 app.post("/url", async (request, response) => {
   const { url } = request.body; // Pega o valor da 'url' do body da request.
 
-  // let nomeVideo;
+  let info;
+  // Baixa as informações básicas do vídeo
+  await ytdl.getBasicInfo(url).then(res => {
+    console.log("=================================================");
+    console.log("VALOR DO RES: ", res);
+    console.log("=================================================");
 
-  const options = []; // Just declaring this
-  youtubeDl.getInfo(url, options, function(err, info) {
-    if (err) throw err;
-
-    // console.log("id:", info.id);
-    // console.log("title:", info.title);
-    // console.log("url:", info.url);
-    // console.log("thumbnail:", info.thumbnail);
-    // console.log("description:", info.description);
-    // console.log("filename:", info._filename);
-    // nomeVideo = info.title;
-    // console.log("format id:", info.format_id);
-    // console.log("nomeVideo:", nomeVideo);
-
-    const video = youtubeDl(
-      url,
-      // "http://www.youtube.com/watch?v=90AiXO1pAiA",
-      // Optional arguments passed to youtube-dl.
-      ["--format=18"],
-      // Additional options can be given for calling `child_process.execFile()`.
-      { cwd: __dirname }
-    );
-
-    // Will be called when the download starts.
-    video.on("info", info => {
-      console.log("Download started");
-      console.log("filename: " + info._filename);
-      console.log("size: " + info.size);
-    });
-
-    video.pipe(fs.createWriteStream(info._filename));
+    info = res;
   });
 
-  return response.json({ mensagem: "Baixou o vídeo: !" });
+  await ytdl.getInfo(url).then(res => {
+    console.log("=================================================");
+    console.log("VALOR DO RES: ", res);
+    console.log("=================================================");
+
+    info = res;
+  });
+
+  // Baixa o áudio do vídeo
+  await ytdl(url, { quality: "highestvideo" }).pipe(
+    fs.createWriteStream(filenamify(info.title) + ".mp3")
+  );
+
+  console.log("=================================================");
+  console.log("VALOR DO INFO: ", info);
+  console.log("=================================================");
+
+  // return response.sendFile(filenamify(info.title) + ".mp3");
+  // return response.download(filenamify(info.title) + ".mp3");
+  return response.json(filenamify(info.title) + ".mp3");
 });
 
 app.listen(3333);
